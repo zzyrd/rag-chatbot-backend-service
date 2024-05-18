@@ -1,6 +1,9 @@
 # vscode config
 .vscode
 
+# customized path
+ocr/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
