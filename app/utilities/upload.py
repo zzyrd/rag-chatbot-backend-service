@@ -1,8 +1,20 @@
 """upload utility functions"""
 import os
+import json
 import httpx
 import fitz  # PyMuPDF
 from fastapi import UploadFile
+from app.logger.custom_logger import log
+
+def allowed_file(file: UploadFile) -> bool:
+    """
+    validate if file provided is allowed entension.
+    """
+    try:
+        extensions = os.getenv('ALLOWED_EXTENSIONS').split(',')
+        return file.filename.lower().rsplit(".", 1)[1] in extensions
+    except (KeyError,TypeError,ValueError) as e:
+        raise e
 
 async def get_file_content(url: str, file_type: str) -> str | None:
     """
@@ -22,12 +34,10 @@ async def get_file_content(url: str, file_type: str) -> str | None:
                 if file_type == 'jpeg':
                     return None
             else:
-                # add logger
-                print("Failed to retrieve the file. Status code:", response.status_code)
-                return None
-    except (httpx.RequestError, OSError) as e:
-        # add logger
-        print(e)
+                raise ValueError(f"Failed to retrieve the file. \
+                                 Status code: {response.status_code}")
+    except (httpx.RequestError, OSError, ValueError) as e:
+        log.error(e)
     return None
 
 def process_pdf(file: bytes) -> str | None:
@@ -45,12 +55,13 @@ def process_pdf(file: bytes) -> str | None:
     except OSError as e:
         raise e
 
-def allowed_file(file: UploadFile) -> bool:
-    """
-    validate if file provided is allowed entension.
-    """
+def read_file(file_name: str) -> str:
+    """Read local ocr folder and get target file content"""
     try:
-        extensions = os.getenv('ALLOWED_EXTENSIONS').split(',')
-        return file.filename.lower().rsplit(".", 1)[1] in extensions
-    except (KeyError,TypeError,ValueError) as e:
+        data = None
+        with open(f"ocr/{file_name}", "r", encoding='UTF-8') as f:
+            json_object = json.load(f)
+            data = json_object['analyzeResult']['content']
+        return data
+    except OSError as e:
         raise e
