@@ -10,6 +10,22 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_EMBEDDING_MODEL: '${{ vars.OPENAI_EMBEDDING_MODEL }}'
+      OPENAI_EMBEDDING_MAX_INPUT: '${{ vars.OPENAI_EMBEDDING_MAX_INPUT }}'
+      OPENAI_GPT_MODEL: '${{ vars.OPENAI_GPT_MODEL }}'
+      OPENAI_GPT_MODEL_MAX_TOKEN: '${{ vars.OPENAI_GPT_MODEL_MAX_TOKEN }}'
+      PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
+      PINECONE_INDEX_NAME: '${{ vars.PINECONE_INDEX_NAME }}'
+      PINECONE_NAMESPACE: '${{ vars.PINECONE_NAMESPACE }}'
+      ALLOWED_EXTENSIONS: '${{ vars.ALLOWED_EXTENSIONS }}'
+      MINIO_ENDPOINT: '${{ vars.MINIO_ENDPOINT }}'
+      MINIO_BUCKET_NAME: '${{ vars.MINIO_BUCKET_NAME }}'
+      MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
+      MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
+      MINIO_URL_EXPIRE_DAYS: '${{ vars.MINIO_URL_EXPIRE_DAYS }}'
+      MOCK_OCR_FILES: '${{ vars.MOCK_OCR_FILES }}'
 
     steps:
       - name: Checkout code
