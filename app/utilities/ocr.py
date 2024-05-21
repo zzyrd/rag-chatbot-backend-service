@@ -1,0 +1,94 @@
+
+"""ocr utility functions"""
+import os
+import time
+import math
+import tiktoken
+from pinecone import Pinecone
+from pinecone import Index
+from pinecone import ServerlessSpec
+from pinecone import PineconeException
+from openai import OpenAI, OpenAIError
+from app.logger.custom_logger import log
+
+DOC_ID = {"建築基準法施行令": "doc0", "東京都建築安全条例": "doc1"}
+DIMENSION = 1536 # dimensionality of text-embed-3-small
+METRIC = "cosine" # pinecone recommended metric for model text-embed-3-small
+SPEC = ServerlessSpec(cloud="aws", region="us-east-1")
+ENCODER = tiktoken.get_encoding("cl100k_base")
+CHUNK_SIZE = 256
+
+async def store_embeddings(client: OpenAI, pc: Pinecone, data:str, file_name:str) -> dict | None:
+    """
+    generate data embeddings and store into vector db
+    """
+    try:
+        index_name = os.getenv('PINECONE_INDEX_NAME')
+        index_init(index_name, pc)
+        index = pc.Index(index_name)
+        tokens = token_chunks(data, chunk_size=CHUNK_SIZE)
+        # determine maximum batch size
+        max_batch_size = math.ceil(int(os.getenv('OPENAI_EMBEDDING_MAX_INPUT')) / CHUNK_SIZE) - 1
+        # create embeddings and store
+        doc_name = file_name.rsplit(".", 1)[0]
+        doc_id = DOC_ID[doc_name]
+        # performance bottleneck -> use asynchronous approach
+        upload_embeddings(client, index, tokens, doc_id, batch_size=max_batch_size)
+        return {
+            "doc_name": doc_name,
+            "doc_id": doc_id,
+            "chunk_size": CHUNK_SIZE,
+            "number_of_chunks": len(tokens)
+        }
+    except (PineconeException, OpenAIError, ValueError) as e:
+        log.error(e)
+
+    return None
+
+def index_init(index_name: str | None, pc: Pinecone) -> None:
+    """create a index if index_name is not found"""
+    if index_name not in pc.list_indexes().names():
+        pc.create_index(
+            name=index_name,
+            dimension=DIMENSION,
+            metric=METRIC,
+            spec=SPEC
+        )
+        # wait for index to be initialized
+        while not pc.describe_index(index_name).status['ready']:
+            time.sleep(1)
+        # add logger info for first time index creation
+        log.info(f"New Index : {index_name} was created for pinecone")
+
+def token_chunks(data: str, chunk_size: int = 256) -> list[tuple[list[int],str]]:
+    """A helper function to chunk data into tokens with given chunk_size"""
+    tokens = ENCODER.encode(data)
+    res = []
+    for i in range(0, len(tokens), chunk_size):
+        token = tokens[i: min(i+chunk_size, len(tokens))]
+        text = ENCODER.decode(token)
+        res.append((token, text))
+    return res
+
+def upload_embeddings(client:OpenAI, index: Index, \
+                      tokens: list[tuple[list[int],str]], doc_id:str, batch_size: int = 1) -> None:
+    """A helper function to create embeddings and upload to vector DB in batch"""
+
+    if batch_size < 1 or not isinstance(batch_size, int):
+        raise ValueError('batch_size should be an integer bigger than 0')
+
+    model_name = os.getenv('OPENAI_EMBEDDING_MODEL')
+    namespace = os.getenv('PINECONE_NAMESPACE')
+    for i in range(0, len(tokens), batch_size):
+        # get batch of chunks and IDs
+        tokens_batch = [token for token, _ in tokens[i: min(i+batch_size, len(tokens))]]
+        text_batch = [text for _, text in tokens[i: min(i+batch_size, len(tokens))]]
+        ids_batch = [f"{doc_id}#chunk{n}" for n in range(i, min(i+batch_size, len(tokens)))]
+        # create embeddings
+        res = client.embeddings.create(input=tokens_batch, model=model_name)
+        embeds = [record.embedding for record in res.data]
+        # prep metadata and upsert batch
+        meta = [{'text': text} for text in text_batch]
+        to_upsert = zip(ids_batch, embeds, meta)
+        # upsert to Pinecone
+        index.upsert(vectors=list(to_upsert), namespace=namespace)
