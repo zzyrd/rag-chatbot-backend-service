@@ -9,13 +9,13 @@ from minio import Minio
 from pinecone import Pinecone
 from openai import OpenAI
 
-from custom_models.upload import FileUploadResponse
-from custom_models.ocr import OcrRequest, OcrResponse
-from custom_models.extract import ExtractRequest, ExtractResponse
-from utilities.upload import get_file_content, allowed_file, read_file
-from utilities.ocr import store_embeddings
-from utilities.extract import query, generate_response
-from logger.custom_logger import log
+from app.custom_models.upload import FileUploadResponse
+from app.custom_models.ocr import OcrRequest, OcrResponse
+from app.custom_models.extract import ExtractRequest, ExtractResponse
+from app.utilities.upload import get_file_content, allowed_file, read_file
+from app.utilities.ocr import store_embeddings
+from app.utilities.extract import query, generate_response
+from app.logger.custom_logger import log
 
 load_dotenv()
 app = FastAPI()
