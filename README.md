@@ -20,7 +20,7 @@
 This FastAPI application is designed to manage and serve three different enpoints to faciliate an LLM driven application.
 - `/upload`: Upload supported files (pdf, tiff, png, jpeg) to object store and return signed URLs
 - `/ocr`: Do an OCR scanning on given file url and process OCR results with OpenAI embeddings, finally store document embeddings into vector database
-- `extract`: By given query text and file id, do embedding similarity search, and generate answer by using OpenAI chat completion API
+- `/extract`: By given query text and file id, do embedding similarity search, and generate answer by using OpenAI chat completion API
 
 ## Prerequisites
 - OpenAI Account and API Keys (LLM setup)
@@ -338,7 +338,7 @@ For simplicity, this project is using swagger UI to send requests to the API end
 
 
 ## Future Improvements
-- Implement user authentication and authorization such as `JWT token` and add Authroization middleware to check `Bearer TOKEN` on each request.
+- Implement user authentication and authorization such as `JWT token` and add Authorization middleware to check `Bearer TOKEN` on each request.
 - Add `/health` endpoint to periodically check if API service is available.
 - Extend logger module to have options to store logs in `.log` files or stream to third party storage for log aggregation and analytics such as `AWS cloutwatch` and `Elasticsearch`
 - Improve API performance: Add `asych await` approach on `/ocr` and `/extract` endpoints to avoid waiting time for concurrent requests.
