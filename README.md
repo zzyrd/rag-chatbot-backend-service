@@ -59,7 +59,6 @@ There are many different ways to implement MinIO object store. In this project, 
    ```
    docker network create --driver bridge my-network  # create a network named my-network
    ```
-   First create a network and then attachment applications to this network so that each container can talk to each other by the container name.
 
    Other network commands:
    ```
