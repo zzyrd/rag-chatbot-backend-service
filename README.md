@@ -15,6 +15,9 @@
   - [How to send request](#how-to-send-request)
     - [Request and Response Objects](#request-and-response-objects)
   - [Future Improvements](#future-improvements)
+  - [Consideration for Production](#consideration-for-production)
+    - [Security](#security)
+    - [Scalability and Availability](#scalability-and-availability)
 
 ## Introduction
 This FastAPI application is designed to manage and serve three different enpoints to faciliate an LLM driven application.
@@ -346,3 +349,35 @@ For simplicity, this project is using swagger UI to send requests to the API end
   - Horizontal scaling by adding more instances running the backend services
 - Add more unit tests to different modules within the application, and add coverage report.
 - Move the `test` modules out of `app` directory to reduce the image size.
+
+## Consideration for Production
+
+### Security
+The current API only supports HTTP request, which will send plaintext throughout the network. That is not secure. Nowadays almost all the web services are using `HTTPS` protocol to send requests by encrypting the message, and `Certificate` is required for the domain name.
+
+In order to support `HTTPS`, the common way is to provide a external component, a `TLS Termination Proxy`, to handle `TLS handshake`, `Certificate Verification`, `Session keys Exchange`, and `Establish secure connection`. Hence, user will only send `HTTPS` request to the server location, The `TLS Termination Proxy` will decrypt the message, and send `HTTP` request to the FastAPI application. After processing the request, FastAPI sends back `HTTP` response to `TLS Termination Proxy`. Lastly, `TLS Termination Proxy` encrypt the response as `HTTPS` response back to user.
+
+Options of technologies for TLS Termination Proxy:
+- Traefix (certificate renewals supported)
+- Caddy (certificate renewals supported)
+- Nginx
+- HAProxy
+
+Options for free Certificate Authority:
+- Let's Encrypt
+- Cloud Services Provider CAs
+
+### Scalability and Availability
+
+There are many ways to make a system scalable and available with different engineering efforts. The main idea is the same.
+1. Generally speaking, the system should be able to automatically restart/replace failed or crashed services to maintain high available without human intervention. In some cases, the system can automatically increase number of worker nodes to hanlde the `spike` requests.
+2. System should be able to distribute and load balacing concurrent requests to several nodes, which are running the backend services, to hanlde the huge amount of requests without blocking the whole system.(Horizontal scaling)
+3. For the sake of easiness to scale the system, make the application as `stateless` as possible.
+
+Here is a brief summary of ways to deploy such a system in production environment.
+
+1. Do everything manually. For example, we can launch serval `EC2` instances to run the `TLS Termination Proxy`, `backend services`, `Restart monitoring services`, `Database services`, etc. This is not a recommended way because it involves many operational overheads and engineering efforts. It's better to reuse the existing tools and services that are built by other talented people instead of reinventing the wheel again in the production.
+2. Use container-based approach and container orchestration tools such as `Kubernetes` to manage the container applications. Then we deploy our applications to managed Kubernetes cluster in production. Examples of managed Kubernetes service are [Amazon EKS](https://aws.amazon.com/eks/) and [Azure Kubernetes Service](https://azure.microsoft.com/en-us/products/kubernetes-service). The container management tools will handle all the auto-scaling, auto-retart, failover, and networking between different containers, which is super convenient and powerful. Another advantage of using container is that the application can run on any operation system or platform without worrying about app dependencies and executables. (de facto approach) 
+3. Use `Platform as a Service` (PaaS) cloud solution to host the application and abstract everythin else away from your side. For instance, [Heroku](https://www.heroku.com/platform) is one of cloud solution to host the application easily and manage auto-scaling, node replication, security by the platform. (easiest approach) 
+
+In conclusion, there are many factors to affect the decision making on which approach to use such as service cost, engineering efforts, limited time to deliver, data privacy and security, and etc. It is always better to have deep and comprehensive discussion between engineering teams and stakeholders to decide the best approach at the end.
